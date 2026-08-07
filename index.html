@@ -94,7 +94,7 @@
   <div id="game-screen">
     <div class="header-bar card" style="margin-bottom: 15px; padding: 15px;">
       <span class="team-badge" id="display-team-name">Команда</span>
-      <span style="font-size: 0.9em; color: var(--text-muted);">Формат: Всё сразу</span>
+      <span style="font-size: 0.9em; color: var(--text-muted);">Формат: Почти всё сразу</span>
     </div>
 
     <div class="global-stats">
@@ -112,6 +112,7 @@
     <h1 style="color: var(--accent-color); font-size: 3em; margin: 10px 0;">🏆</h1>
     <h2>Поздравляем!</h2>
     <p style="margin-bottom: 20px; font-size: 1.1em;">Все задания успешно выполнены.</p>
+    <p style="margin-bottom: 20px; font-size: 1.1em;">Поднимайтесь пить чай ))</p>
   </div>
 </div>
 
@@ -131,6 +132,12 @@
   // НАСТРОЙКИ ИГРЫ
   // ==========================================
   const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzjs6JetQNjLjIQsvPJl5YU74ToLLFvRiNTHi0V_LpZxJsNPSBhkd6bfGfW_JcEE-TU/exec"; 
+  
+  // ВЫКЛЮЧАТЕЛИ (true = включено, false = отключено)
+  const REQUIRE_LOGIN = true;       // Запрашивать название команды и пароль?
+  const REQUIRE_START_CODE = false;  // Запрашивать кодовое слово старта (LOCAL_START_CODE)?
+  
+  const DEFAULT_TEAM_NAME = "Команда"; // Имя по умолчанию, если REQUIRE_LOGIN = false
   const LOCAL_START_CODE = "AQ0808"; 
   const LOCK_LAST_TASK = true; 
   // ==========================================
@@ -151,7 +158,6 @@
   let syncInterval = null;
   let timerInterval = null;
 
-  // Чистый сетевой запрос, без ID устройств
   function fetchState(action, extraParams, callback) {
     const uniqueTime = new Date().getTime();
     
@@ -175,6 +181,20 @@
   }
 
   window.onload = function() {
+    // Применяем настройки обхода логина
+    if (!REQUIRE_LOGIN) {
+      teamName = DEFAULT_TEAM_NAME;
+      teamPin = "0000"; 
+      // Прячем все кнопки выхода
+      document.querySelectorAll('.btn-logout').forEach(btn => btn.style.display = 'none');
+    }
+
+    // Применяем настройки обхода стартового кода
+    if (!REQUIRE_START_CODE) {
+      gameStarted = true;
+    }
+
+    // Стандартная маршрутизация окон
     if (teamName && teamPin) {
       if (gameStarted) {
         showScreen("game-screen");
@@ -215,7 +235,19 @@
       if (data.status === "OK") {
         localStorage.setItem("quest_team", teamName);
         localStorage.setItem("quest_pin", teamPin);
-        showScreen("start-code-screen");
+        
+        // Проверка: нужен ли стартовый код после логина?
+        if (!REQUIRE_START_CODE) {
+            gameStarted = true;
+            localStorage.setItem("quest_started", "true");
+            document.getElementById("display-team-name").textContent = teamName;
+            showScreen("game-screen");
+            backgroundSync();
+            if (!syncInterval) syncInterval = setInterval(backgroundSync, 10000);
+            if (!timerInterval) timerInterval = setInterval(updateTimers, 1000);
+        } else {
+            showScreen("start-code-screen");
+        }
       } else showMsg("auth-msg", data.message, "error");
     });
   }
